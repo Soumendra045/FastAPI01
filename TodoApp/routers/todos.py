@@ -7,6 +7,8 @@ from fastapi import Depends,HTTPException,status,Path,APIRouter
 from models import Todos
 from database import SessionLocal
 
+from .auth import get_current_user
+
 
 router = APIRouter()
 
@@ -19,6 +21,7 @@ def get_db():
         db.close()
 
 db_dependancy = Annotated[Session,Depends(get_db)]
+user_dependancy = Annotated[dict,Depends(get_current_user)]
 
 class TodoRequest(BaseModel):
     title: str = Field(min_length=3)
@@ -38,8 +41,12 @@ def read_todo(db: db_dependancy,todo_id: int = Path(gt=0)):
     raise HTTPException(status_code=404,detail='Todo not found')
 
 @router.post('/todo/',status_code=status.HTTP_201_CREATED)
-def create_todo(db: db_dependancy,todo_request:TodoRequest):
-    todo_model = Todos(**todo_request.dict())
+def create_todo(user:user_dependancy,db: db_dependancy,todo_request:TodoRequest):
+
+    if user is None:
+        raise HTTPException(status_code=401,detail='Authentication Failed')
+
+    todo_model = Todos(**todo_request.dict(),owner_id = user.get('id'))
 
     db.add(todo_model)
     db.commit()

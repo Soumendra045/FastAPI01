@@ -8,13 +8,16 @@ from database import SessionLocal
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm,OAuth2PasswordBearer
 from jose import jwt,JWTError
+# import os
+# from dotenv import load_dotenv
+# load_dotenv()
 
 router = APIRouter(
     prefix='/auth',
     tags=['auth']
 )
 
-SECRET_KEY = '0bc9b91956fb89e02eadcdd7f2eb75da3ca2a16746871877653311af987365d2'
+SECRET_KEY = 'edf4b781f9c0b777896cc0466e924a5475f6cad95472cd0d21e0efa95dabd0dd'
 ALGORITHM = 'HS256'
 
 bcrypt_context = CryptContext(schemes=['bcrypt'],deprecated='auto')
@@ -50,22 +53,25 @@ def authenicated_user(username:str,password:str,db):
         return False
     return user
 
-def create_acess_token(username: str,user_id: int,expire_delta: timedelta):
+def create_acess_token(username: str,user_id: int,expires_delta: timedelta):
     encode = {'sub':username,'id':user_id}
-    expires = datetime.now(timezone.utc)+expire_delta
-    encode.update({'exp':expires})
+    expires = datetime.now(timezone.utc)+expires_delta
+    # expires = encode.update({'exp': int(expires.timestamp())})
+    # encode.update({'exp':expires})
+    encode.update({'exp': int(expires.timestamp())})
     return jwt.encode(encode,SECRET_KEY,algorithm=ALGORITHM)
 
 def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
     try:
         payload = jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
         username: str = payload.get('sub')
-        user_id: str = payload.get('id')
+        user_id: int = payload.get('id')
         if username is None or user_id is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Could not valid user')
         return {'username':username,'id':user_id}
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Could not valid user')
+        print("TOKEN RECEIVED:", token)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Could not validate user')
 
 
 @router.post('/',status_code=status.HTTP_201_CREATED)
